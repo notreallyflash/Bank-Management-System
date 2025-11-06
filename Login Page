@@ -1,0 +1,82 @@
+Imports System.Data.SqlClient
+Imports System.Security.Cryptography
+Imports System.Text
+
+Public Class Login
+    Private connectionString As String = "Data Source=LAPTOP-C30J8TBH\SQLEXPRESS;Initial Catalog=Latest;Integrated Security=True;Connect Timeout=30;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadWrite;MultiSubnetFailover=False"
+
+    ' Load event to attach handlers
+    Private Sub Login_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        AddHandler btnLogin.Click, AddressOf btnLogin_Click
+        AddHandler btnRegister.Click, AddressOf btnRegister_Click
+    End Sub
+
+    ' Login Button Click Event
+    Private Sub btnLogin_Click(sender As Object, e As EventArgs)
+        Dim username As String = txtUsername.Text
+        Dim password As String = txtPassword.Text
+
+        If String.IsNullOrWhiteSpace(username) OrElse String.IsNullOrWhiteSpace(password) Then
+            MessageBox.Show("Please enter both Username and Password!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Exit Sub
+        End If
+
+        ' Check credentials in database
+
+        Using con As New SqlConnection(connectionString)
+            con.Open()
+            Dim query As String = "SELECT PasswordHash FROM Users WHERE Username = @username"
+
+            Using cmd As New SqlCommand(query, con)
+                cmd.Parameters.AddWithValue("@username", username)
+                Dim storedHash As Object = cmd.ExecuteScalar()
+
+                If storedHash IsNot Nothing AndAlso VerifyPassword(password, storedHash.ToString()) Then
+                    ' MessageBox.Show("Login Successful!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Me.Hide()
+                    ' Assuming username is stored in a textbox named txtUsername
+                    Dim loggedInUsername As String = txtUsername.Text.Trim()
+
+                    Dim dashboard As New Dashboard(loggedInUsername)
+                    dashboard.Show()
+                    Me.Hide()
+
+                Else
+                    MessageBox.Show("Invalid Username or Password!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End If
+            End Using
+        End Using
+    End Sub
+
+    ' Function to verify hashed password
+
+    Private Function VerifyPassword(enteredPassword As String, storedHash As String) As Boolean
+        Dim sha256 As SHA256 = SHA256.Create()
+        Dim enteredBytes As Byte() = sha256.ComputeHash(Encoding.UTF8.GetBytes(enteredPassword))
+        Dim enteredHash As String = Convert.ToBase64String(enteredBytes)
+        Return enteredHash = storedHash
+    End Function
+
+    ' Register Button Click Event
+
+    Private Sub btnRegister_Click(sender As Object, e As EventArgs)
+        Me.Hide()
+        Dim registerForm As New Register()
+        registerForm.Show()
+    End Sub
+
+    Private Sub btnAdmin_Click(sender As Object, e As EventArgs) Handles btnAdmin.Click
+        Me.Hide()
+        Dim frmAdminLogin As New frmAdminLogin()
+        frmAdminLogin.Show()
+
+    End Sub
+
+    Private Sub Guna2PictureBox1_Click(sender As Object, e As EventArgs)
+    End Sub
+    Private Sub lblTitle_Click(sender As Object, e As EventArgs)
+    End Sub
+    Private Sub Label3_Click(sender As Object, e As EventArgs) Handles Label3.Click
+    End Sub
+
+End Class
