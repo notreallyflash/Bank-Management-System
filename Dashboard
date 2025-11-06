@@ -1,0 +1,125 @@
+Public Class Dashboard
+    Private connectionString As String = "Data Source=LAPTOP-C30J8TBH\SQLEXPRESS;Initial Catalog=Latest;Integrated Security=True;Connect Timeout=30;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadWrite;MultiSubnetFailover=False"
+    Private loggedInUsername As String
+
+    ' Constructor with username parameter
+    Public Sub New(username As String)
+        InitializeComponent()
+        loggedInUsername = username
+    End Sub
+
+    ' Load Dashboard Data
+    Private Sub Dashboard_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        lblWelcome.Text = "Welcome, " & loggedInUsername
+        FetchUserDetails()
+        RefreshBalance()
+
+        ' Attach event handlers
+        AddHandler btnViewBalance.Click, AddressOf btnViewBalance_Click
+        AddHandler btnDeposit.Click, AddressOf btnDeposit_Click
+        AddHandler btnFundTransfer.Click, AddressOf btnFundTransfer_Click
+        AddHandler btnTransactionHistory.Click, AddressOf btnTransactionHistory_Click
+        AddHandler btnLogout.Click, AddressOf btnLogout_Click
+        AddHandler btnUserProfile.Click, AddressOf btnUserProfile_Click  ' Changed name from Guna2Button1
+    End Sub
+
+    ' Fetch Account Number & IFSC Code from Database
+    Private Sub FetchUserDetails()
+        Try
+            Using con As New SqlConnection(connectionString)
+                con.Open()
+                Dim query As String = "SELECT AccountNumber, IFSCCode FROM Users WHERE Username = @username"
+                Using cmd As New SqlCommand(query, con)
+                    cmd.Parameters.AddWithValue("@username", loggedInUsername)
+                    Dim reader As SqlDataReader = cmd.ExecuteReader()
+
+                    If reader.Read() Then
+                        lblAccountNumber.Text = "Account No: " & reader("AccountNumber").ToString()
+                        lblIFSCCode.Text = "IFSC Code: " & reader("IFSCCode").ToString()
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            MessageBox.Show("Error fetching user details: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    ' Refresh the account balance display
+    Public Sub RefreshBalance()
+        Try
+            Using con As New SqlConnection(connectionString)
+                con.Open()
+                Dim query As String = "
+                SELECT ISNULL(SUM(
+                    CASE 
+                        WHEN TransactionType = 'Deposit' AND Status = 'Approved' THEN Amount 
+                        WHEN TransactionType IN ('Withdrawal', 'Transfer') AND Status = 'Approved' THEN -Amount 
+                        ELSE 0 
+                    END
+                ), 0) 
+                FROM Transactions 
+                WHERE Username = @username"
+
+                Using cmd As New SqlCommand(query, con)
+                    cmd.Parameters.AddWithValue("@username", loggedInUsername)
+                    Dim balance As Object = cmd.ExecuteScalar()
+                    Dim currentBalance As Decimal = If(IsDBNull(balance), 0, Convert.ToDecimal(balance))
+
+                    ' Update balance label on dashboard - this was missing
+                    'lblBalance.Text = "Balance: " & currentBalance.ToString("C")
+                End Using
+            End Using
+        Catch ex As Exception
+            MessageBox.Show("Error refreshing balance: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    ' View Balance
+    Private Sub btnViewBalance_Click(sender As Object, e As EventArgs)
+        ' Open balance check form
+        Dim frmBalancePasswordVerification As New frmBalancePasswordVerification(loggedInUsername)
+        frmBalancePasswordVerification.Show()
+        RefreshBalance()
+    End Sub
+
+    ' Deposit Money
+    Private Sub btnDeposit_Click(sender As Object, e As EventArgs)
+        ' Open the new detailed Deposit Form
+        Dim depositForm As New frmDeposit(loggedInUsername)
+        Dim result = depositForm.ShowDialog()
+
+        ' Refresh balance after deposit operation
+        If result = DialogResult.OK Then
+            RefreshBalance()
+        End If
+    End Sub
+
+    ' Fund Transfer
+    Private Sub btnFundTransfer_Click(sender As Object, e As EventArgs)
+        ' Open Fund Transfer form
+        Dim fundTransferForm As New FundTransfer(loggedInUsername)
+        Dim result = fundTransferForm.ShowDialog()
+        If result = DialogResult.OK Then  ' Fixed variable name capitalization
+            RefreshBalance()
+        End If
+    End Sub
+
+    ' View Transaction History - removed Handles clause
+    Private Sub btnTransactionHistory_Click(sender As Object, e As EventArgs)
+        Dim transactionHistoryForm As New TransactionHistory(loggedInUsername)
+        transactionHistoryForm.Show()
+    End Sub
+
+    ' Logout
+    Private Sub btnLogout_Click(sender As Object, e As EventArgs)
+        Me.Hide()
+        Dim loginForm As New Login()
+        loginForm.Show()
+    End Sub
+
+    ' User Profile Management - renamed from Guna2Button1_Click and removed Handles clause
+    Private Sub btnUserProfile_Click(sender As Object, e As EventArgs)
+        Dim profileForm As New UserProfileManagement(loggedInUsername)
+        profileForm.ShowDialog()
+    End Sub
+End Class
