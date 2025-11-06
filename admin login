@@ -1,0 +1,73 @@
+Imports System.Data.SqlClient
+Imports Guna.UI2.WinForms
+
+Public Class frmAdminLogin
+    Private connectionString As String = "Data Source=LAPTOP-C30J8TBH\SQLEXPRESS;Initial Catalog=Latest;Integrated Security=True;Connect Timeout=30;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadWrite;MultiSubnetFailover=False"
+
+    Public Sub New()
+        InitializeComponent()
+    End Sub
+
+    ' Authenticate Admin
+    Private Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
+        Dim username As String = txtUsername.Text.Trim()
+        Dim password As String = txtPassword.Text
+
+        If String.IsNullOrWhiteSpace(username) Then
+            MessageBox.Show("Please enter username", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            txtUsername.Focus()
+            Return
+        End If
+
+        If String.IsNullOrWhiteSpace(password) Then
+            MessageBox.Show("Please enter password", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            txtPassword.Focus()
+            Return
+        End If
+
+        If AuthenticateAdmin(username, password) Then
+            ' Open Admin Dashboard
+            Dim adminDashboard As New frmAdminDashboard(username)
+            adminDashboard.Show()
+            Me.Hide()
+        Else
+            MessageBox.Show("Invalid admin credentials", "Login Failed", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            txtPassword.Clear()
+            txtUsername.Focus()
+        End If
+    End Sub
+
+    ' Authenticate Admin Credentials
+    Private Function AuthenticateAdmin(username As String, password As String) As Boolean
+        Try
+            Using con As New SqlConnection(connectionString)
+                con.Open()
+
+                ' Simple query to check credentials without hashing
+                Dim query As String = "SELECT COUNT(*) FROM AdminUsers WHERE Username = @username AND Password = @password"
+
+                Using cmd As New SqlCommand(query, con)
+                    cmd.Parameters.AddWithValue("@username", username)
+                    cmd.Parameters.AddWithValue("@password", password)
+
+                    Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+
+                    Return count > 0
+                End Using
+            End Using
+        Catch ex As Exception
+            MessageBox.Show("Authentication error: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Return False
+        End Try
+    End Function
+
+    ' Remove the HashPassword method entirely
+
+    ' Cancel Button
+    Private Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+        Me.Close()
+
+        Dim loginForm As New Login()
+        loginForm.Show()
+    End Sub
+End Class
